@@ -13,7 +13,7 @@ AgentFlow is a tool-bounded framework that turns a high-level research objective
 - Execute deterministic placeholder workers and retain structured state.
 - Expose the workflow through a small FastAPI endpoint.
 
-LLM calls, PDF extraction, web retrieval, semantic review, checkpoint persistence, and branch-level recovery are planned as subsequent milestones. They are intentionally not represented as completed functionality in this baseline.
+The next milestone adds real text/PDF extraction through `agentflow.document_tools.read_document`. LLM calls, web retrieval, semantic review, checkpoint persistence, and branch-level recovery remain subsequent milestones.
 
 ## Run
 
@@ -34,8 +34,8 @@ pytest
 
 ## Milestones
 
-1. Baseline graph, registry, executor and API.
-2. Document ingestion and extraction tools.
+1. Baseline graph, registry, executor and API. (complete)
+2. Document ingestion and extraction tools. (complete)
 3. Research-source retrieval and citation records.
 4. Hybrid validation and branch-level recovery.
 5. End-to-end report generation and evaluation harness.
