@@ -13,7 +13,7 @@ AgentFlow is a tool-bounded framework that turns a high-level research objective
 - Execute deterministic placeholder workers and retain structured state.
 - Expose the workflow through a small FastAPI endpoint.
 
-The baseline now includes real text/PDF extraction through `agentflow.document_tools.read_document` and structured-data inspection through `agentflow.data_tools.inspect_table`. LLM calls, web retrieval, semantic review, checkpoint persistence, and branch-level recovery remain subsequent milestones.
+The baseline now includes real text/PDF extraction through `agentflow.document_tools.read_document`, structured-data inspection through `agentflow.data_tools.inspect_table`, and Crossref-backed scholarly source retrieval through `agentflow.research_tools.CrossrefSearchProvider`. LLM planning, semantic review, checkpoint persistence, and branch-level recovery remain subsequent milestones.
 
 ## Run
 
@@ -37,6 +37,6 @@ pytest
 1. Baseline graph, registry, executor and API. (complete)
 2. Document ingestion and extraction tools. (complete)
 3. Structured-data inspection tools. (complete)
-4. Research-source retrieval and citation records.
+4. Research-source retrieval and citation records. (complete)
 5. Hybrid validation and branch-level recovery.
 6. End-to-end report generation and evaluation harness.

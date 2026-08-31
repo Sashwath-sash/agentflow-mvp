@@ -3,11 +3,13 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from .planner import Planner
+from .research_tools import CrossrefSearchProvider, ResearchSearchError
 from .runtime import RuntimeExecutor
 
 app = FastAPI(title="AgentFlow", version="0.1.0")
 planner = Planner()
 executor = RuntimeExecutor()
+research_provider = CrossrefSearchProvider()
 
 PAGE = """<!doctype html>
 <html><head><title>AgentFlow</title><style>
@@ -32,6 +34,11 @@ class PlanRequest(BaseModel):
     objective: str
 
 
+class ResearchRequest(BaseModel):
+    query: str
+    limit: int = 5
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -51,3 +58,11 @@ def execute(request: PlanRequest):
         return executor.execute(planner.build_graph(request.objective))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/research")
+def research(request: ResearchRequest):
+    try:
+        return {"query": request.query, "sources": research_provider.search(request.query, request.limit)}
+    except ResearchSearchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
