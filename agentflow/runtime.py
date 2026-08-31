@@ -1,5 +1,6 @@
 from .models import AgentInstance, ExecutionResult, TaskGraph, TaskResult, TaskStatus
 from .registry import ToolRegistry
+from .validation import validate_task_result
 
 
 class RuntimeExecutor:
@@ -22,8 +23,17 @@ class RuntimeExecutor:
         by_id = {task.id: task for task in graph.tasks}
         order = self._order(graph)
         results: list[TaskResult] = []
+        completed_ids: set[str] = set()
         for task_id in order:
             task = by_id[task_id]
             agent = AgentInstance(role=task.role, objective=task.objective, approved_tools=[tool.name for tool in self.registry.tools_for(task.required_capabilities)])
-            results.append(TaskResult(task_id=task.id, status=TaskStatus.COMPLETED, agent=agent, output={"message": "Baseline task accepted for adapter execution.", "dependencies": task.depends_on}))
+            result = TaskResult(task_id=task.id, status=TaskStatus.COMPLETED, agent=agent, output={"message": "Baseline task accepted for adapter execution.", "dependencies": task.depends_on})
+            errors = validate_task_result(task, result, completed_ids)
+            if errors:
+                result.status = TaskStatus.FAILED
+                result.output = {"validation_errors": errors}
+            else:
+                result.output["validation"] = "passed"
+                completed_ids.add(task.id)
+            results.append(result)
         return ExecutionResult(objective=graph.objective, order=order, results=results)
