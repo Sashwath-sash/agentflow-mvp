@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from .planner import Planner
+from .gemini_ai import GeminiError, GeminiProvider
 from .research_tools import CrossrefSearchProvider, ResearchSearchError
 from .runtime import RuntimeExecutor
 
@@ -10,6 +11,7 @@ app = FastAPI(title="AgentFlow", version="0.1.0")
 planner = Planner()
 executor = RuntimeExecutor()
 research_provider = CrossrefSearchProvider()
+gemini_provider = GeminiProvider()
 
 PAGE = """<!doctype html>
 <html><head><title>AgentFlow</title><style>
@@ -39,6 +41,10 @@ class ResearchRequest(BaseModel):
     limit: int = 5
 
 
+class AIRequest(BaseModel):
+    prompt: str
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -66,3 +72,11 @@ def research(request: ResearchRequest):
         return {"query": request.query, "sources": research_provider.search(request.query, request.limit)}
     except ResearchSearchError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/ai/generate")
+def ai_generate(request: AIRequest):
+    try:
+        return {"model": gemini_provider.model, "text": gemini_provider.generate(request.prompt)}
+    except GeminiError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
