@@ -13,7 +13,7 @@ AgentFlow is a tool-bounded framework that turns a high-level research objective
 - Execute deterministic placeholder workers and retain structured state.
 - Expose the workflow through a small FastAPI endpoint.
 
-The baseline now includes real text/PDF extraction through `agentflow.document_tools.read_document`, structured-data inspection through `agentflow.data_tools.inspect_table`, Crossref-backed scholarly source retrieval through `agentflow.research_tools.CrossrefSearchProvider`, deterministic result validation through `agentflow.validation.validate_task_result`, and a readable workflow-card interface. LLM planning, semantic review, checkpoint persistence, and branch-level recovery remain subsequent milestones.
+The baseline now includes real text/PDF extraction through `agentflow.document_tools.read_document`, structured-data inspection through `agentflow.data_tools.inspect_table`, Crossref-backed scholarly source retrieval through `agentflow.research_tools.CrossrefSearchProvider`, deterministic result validation through `agentflow.validation.validate_task_result`, a readable workflow-card interface, and an optional free local-model adapter through `agentflow.local_ai.OllamaProvider`. LLM planning, semantic review, checkpoint persistence, and branch-level recovery remain subsequent milestones.
 
 ## Run
 
@@ -40,4 +40,8 @@ pytest
 4. Research-source retrieval and citation records. (complete)
 5. Deterministic validation foundation. (complete)
 6. Hybrid validation, checkpoints and branch-level recovery.
+
+## Optional free local AI
+
+Install Ollama from `https://ollama.com`, start it, and download a model such as `llama3.2:3b`. Then set `AGENTFLOW_OLLAMA_MODEL` if a different local model is desired. No paid API key is required.
 6. End-to-end report generation and evaluation harness.
