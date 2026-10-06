@@ -6,9 +6,12 @@ from .planner import Planner
 from .gemini_ai import GeminiError, GeminiProvider
 from .research_tools import CrossrefSearchProvider, ResearchSearchError
 from .runtime import RuntimeExecutor
+from .reporting import render_markdown_report
+from .smart_planner import SmartPlanner
 
 app = FastAPI(title="AgentFlow", version="0.1.0")
 planner = Planner()
+smart_planner = SmartPlanner()
 executor = RuntimeExecutor()
 research_provider = CrossrefSearchProvider()
 gemini_provider = GeminiProvider()
@@ -61,7 +64,9 @@ def plan(request: PlanRequest):
 @app.post("/execute")
 def execute(request: PlanRequest):
     try:
-        return executor.execute(planner.build_graph(request.objective))
+        graph = smart_planner.build_graph(request.objective)
+        result = executor.execute(graph)
+        return {**result.model_dump(), "planning_mode": smart_planner.last_mode, "report_markdown": render_markdown_report(result, smart_planner.last_mode)}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
