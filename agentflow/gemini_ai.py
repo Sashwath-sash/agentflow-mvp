@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from urllib.parse import quote
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -28,8 +29,14 @@ class GeminiProvider:
         try:
             with urlopen(request, timeout=60) as response:
                 result = json.load(response)
+        except HTTPError as exc:
+            try:
+                detail = json.loads(exc.read().decode()).get("error", {}).get("message", "provider rejected the request")
+            except Exception:
+                detail = "provider rejected the request"
+            raise GeminiError(f"Gemini provider error ({exc.code}): {detail}") from exc
         except Exception as exc:
-            raise GeminiError("Gemini request failed") from exc
+            raise GeminiError("Gemini request failed; check network and model configuration") from exc
         try:
             return result["candidates"][0]["content"]["parts"][0]["text"].strip()
         except (KeyError, IndexError, TypeError) as exc:
