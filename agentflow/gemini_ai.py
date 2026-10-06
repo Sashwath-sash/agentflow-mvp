@@ -18,7 +18,18 @@ class GeminiProvider:
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         self.model = model or os.getenv("AGENTFLOW_GEMINI_MODEL", "gemini-2.5-flash")
 
-    def generate(self, prompt: str) -> str:
+    def available_models(self) -> list[str]:
+        request = Request("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", headers={"x-goog-api-key": self.api_key or ""})
+        try:
+            with urlopen(request, timeout=20) as response:
+                models = json.load(response).get("models", [])
+            return [m["name"].removeprefix("models/") for m in models
+                    if "generateContent" in m.get("supportedGenerationMethods", [])
+                    and "flash" in m["name"] and not any(x in m["name"] for x in ("image", "audio", "live", "tts"))]
+        except Exception:
+            raise GeminiError("Unable to list available Gemini models") from None
+
+    def generate(self, prompt: str, _retry: bool = True) -> str:
         if not self.api_key:
             raise GeminiError("GEMINI_API_KEY is not configured")
         if not prompt.strip():
@@ -30,6 +41,12 @@ class GeminiProvider:
             with urlopen(request, timeout=60) as response:
                 result = json.load(response)
         except HTTPError as exc:
+            if exc.code == 404 and _retry:
+                models = self.available_models()
+                choices = sorted((m for m in models if m != self.model), reverse=True)
+                if choices:
+                    self.model = choices[0]
+                    return self.generate(prompt, _retry=False)
             try:
                 detail = json.loads(exc.read().decode()).get("error", {}).get("message", "provider rejected the request")
             except Exception:

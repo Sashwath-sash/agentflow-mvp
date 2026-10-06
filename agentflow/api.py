@@ -4,12 +4,13 @@ import re
 from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel, Field, SecretStr
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from . import workflow as wf
 from .gemini_ai import GeminiProvider, GeminiError
 from contextlib import asynccontextmanager
 
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(ENV_FILE)
 @asynccontextmanager
 async def lifespan(app):
     wf.recover_interrupted()
@@ -28,8 +29,14 @@ def configure_gemini(settings: GeminiSettings):
     key = settings.key.get_secret_value().strip()
     if not key or len(key) > 500:
         raise HTTPException(400, "Enter a valid Gemini key")
+    set_key(str(ENV_FILE), "GEMINI_API_KEY", key)
     os.environ["GEMINI_API_KEY"] = key
-    return {"configured": True, "message": "Key set for this server session. Model access is checked during analysis."}
+    return {"configured": True, "message": "Key saved on this computer. It will load automatically after restarts."}
+
+
+@app.get("/settings/gemini")
+def gemini_status():
+    return {"configured": bool(os.getenv("GEMINI_API_KEY")), "saved": ENV_FILE.is_file()}
 
 
 class RunRequest(BaseModel):
