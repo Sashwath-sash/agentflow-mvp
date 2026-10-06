@@ -17,3 +17,12 @@ def test_inspects_csv_structure():
         assert "mean" in summary["numeric_summary"]["score"]
     finally:
         source.unlink(missing_ok=True)
+
+
+def test_inspects_categorical_only_csv():
+    source = Path(__file__).parent / ".test-categorical.csv"
+    pd.DataFrame({"topic": ["agents", "tools"]}).to_csv(source, index=False)
+    try:
+        assert inspect_table(source)["numeric_summary"] == {}
+    finally:
+        source.unlink(missing_ok=True)

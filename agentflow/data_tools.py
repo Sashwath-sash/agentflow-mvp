@@ -27,6 +27,8 @@ def inspect_table(path: str | Path) -> dict[str, Any]:
     except Exception as exc:
         raise DataReadError(f"could not read data file: {source}") from exc
 
+    numeric = frame.select_dtypes(include="number")
+    numeric_summary = numeric.describe().round(4).to_dict() if not numeric.empty else {}
     return {
         "file": source.name,
         "rows": int(frame.shape[0]),
@@ -34,5 +36,5 @@ def inspect_table(path: str | Path) -> dict[str, Any]:
         "column_names": [str(name) for name in frame.columns],
         "column_types": {str(name): str(dtype) for name, dtype in frame.dtypes.items()},
         "missing_values": {str(name): int(count) for name, count in frame.isna().sum().items()},
-        "numeric_summary": frame.select_dtypes(include="number").describe().round(4).to_dict(),
+        "numeric_summary": numeric_summary,
     }
