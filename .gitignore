@@ -3,6 +3,8 @@ __pycache__/
 .venv/
 *.py[cod]
 .env
+.env.*
+.agentflow/
 dist/
 build/
 *.egg-info/

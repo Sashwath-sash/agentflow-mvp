@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import json
 
 
 class DataReadError(ValueError):
@@ -28,7 +29,7 @@ def inspect_table(path: str | Path) -> dict[str, Any]:
         raise DataReadError(f"could not read data file: {source}") from exc
 
     numeric = frame.select_dtypes(include="number")
-    numeric_summary = numeric.describe().round(4).to_dict() if not numeric.empty else {}
+    numeric_summary = json.loads(numeric.describe().round(4).to_json()) if not numeric.empty else {}
     return {
         "file": source.name,
         "rows": int(frame.shape[0]),

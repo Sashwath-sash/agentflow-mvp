@@ -23,9 +23,9 @@ class GeminiProvider:
             raise GeminiError("GEMINI_API_KEY is not configured")
         if not prompt.strip():
             raise GeminiError("prompt must not be empty")
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{quote(self.model, safe='')}:generateContent?key={self.api_key}"
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{quote(self.model, safe='')}:generateContent"
         payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode()
-        request = Request(endpoint, data=payload, headers={"Content-Type": "application/json"})
+        request = Request(endpoint, data=payload, headers={"Content-Type": "application/json", "x-goog-api-key": self.api_key})
         try:
             with urlopen(request, timeout=60) as response:
                 result = json.load(response)
@@ -34,7 +34,8 @@ class GeminiProvider:
                 detail = json.loads(exc.read().decode()).get("error", {}).get("message", "provider rejected the request")
             except Exception:
                 detail = "provider rejected the request"
-            raise GeminiError(f"Gemini provider error ({exc.code}): {detail}") from exc
+            reason = {400: "invalid request or API key", 401: "authentication failed", 403: "key or model access denied", 404: "model unavailable", 429: "free quota exhausted; try later"}.get(exc.code, "provider unavailable")
+            raise GeminiError(f"Gemini ({exc.code}): {reason}") from None
         except Exception as exc:
             raise GeminiError("Gemini request failed; check network and model configuration") from exc
         try:
