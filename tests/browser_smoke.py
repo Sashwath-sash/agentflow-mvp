@@ -10,6 +10,7 @@ with sync_playwright() as p:
     page.locator("#objective").fill("Inspect my paper and dataset")
     page.locator("#files").set_input_files([str(root/"sample-paper.pdf"),str(root/"sample-data.csv")])
     page.get_by_text("sample-data.csv — ready (data)",exact=True).wait_for(timeout=30000)
+    page.locator("#provider").select_option("none")
     page.locator("#start").click()
     page.get_by_role("link",name="Download report").wait_for(timeout=30000)
     assert "Rows: 3" in page.locator("#results").inner_text()
