@@ -15,7 +15,7 @@ class GeminiProvider:
     """Google Gemini REST adapter; usage is controlled by the user's free-tier limits."""
 
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        self.api_key = os.getenv("GEMINI_API_KEY") if api_key is None else api_key
         self.model = model or os.getenv("AGENTFLOW_GEMINI_MODEL", "gemini-2.5-flash")
 
     def available_models(self) -> list[str]:
@@ -56,6 +56,7 @@ class GeminiProvider:
         except Exception as exc:
             raise GeminiError("Gemini request failed; check network and model configuration") from exc
         try:
+            self.last_usage = {"total_tokens": result.get("usageMetadata", {}).get("totalTokenCount", 0)}
             return result["candidates"][0]["content"]["parts"][0]["text"].strip()
         except (KeyError, IndexError, TypeError) as exc:
             raise GeminiError("Gemini returned no text") from exc

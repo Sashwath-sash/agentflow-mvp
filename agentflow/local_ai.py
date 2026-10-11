@@ -26,4 +26,5 @@ class OllamaProvider:
                 result = json.load(response)
         except Exception as exc:
             raise LocalAIError("Ollama is unavailable; install it and start a local model") from exc
+        self.last_usage = {"total_tokens": result.get("prompt_eval_count", 0) + result.get("eval_count", 0)}
         return str(result.get("response", "")).strip()
