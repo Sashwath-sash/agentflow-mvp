@@ -37,7 +37,19 @@ def configure_gemini(settings: GeminiSettings):
 
 @app.get("/settings/gemini")
 def gemini_status():
-    return {"configured": bool(os.getenv("GEMINI_API_KEY")), "saved": bool(dotenv_values(ENV_FILE).get("GEMINI_API_KEY"))}
+    return {"configured": bool(os.getenv("GEMINI_API_KEY")), "saved": bool(dotenv_values(ENV_FILE).get("GEMINI_API_KEY")),
+            "model": GeminiProvider().model}
+
+
+@app.post("/settings/gemini/test")
+def test_gemini():
+    provider = GeminiProvider()
+    try:
+        provider.generate("Reply with only OK.")
+        return {"message": "Gemini connection verified. This does not guarantee quota for a full analysis.",
+                "model": provider.model}
+    except GeminiError as exc:
+        raise HTTPException(503, str(exc)) from None
 
 
 class RunRequest(BaseModel):
@@ -126,7 +138,8 @@ def execute(request: RunRequest, background: BackgroundTasks):
     state = {"id": run_id, "objective": request.objective, "provider": request.provider,
              "tasks": tasks, "status": "queued", "file_ids": request.file_ids, "search": request.search,
              "dynamic": request.dynamic and request.provider != "none", "auto_recover": request.auto_recover,
-             "planning_mode": "input-aware rules", "metrics": {}, "events": []}
+             "planning_mode": "input-aware rules", "metrics": {}, "events": [],
+             "agents": [], "handoffs": []}
     wf.save_run(state)
     background.add_task(wf.run_workflow, "", [], run_id=run_id)
     return state
@@ -145,6 +158,12 @@ def retry(run_id: str, background: BackgroundTasks):
     state = get_run(run_id)
     if state["status"] in {"running", "queued"}:
         raise HTTPException(409, "This run is already active")
+    if "file_ids" in state:
+        try:
+            files = [wf.get_file(fid) for fid in state["file_ids"]]
+            wf.validate_objective_inputs(state["objective"], files, state.get("search", False))
+        except ValueError as exc:
+            raise HTTPException(400, str(exc) + " This run's inputs cannot be changed; start a new run.") from None
     if any(t["status"] != "completed" and t["attempts"] >= 3 for t in state["tasks"]):
         raise HTTPException(400, "Retry budget reached. Correct the inputs or provider configuration and start a new run.")
     state["status"] = "queued"

@@ -16,7 +16,7 @@ class GeminiProvider:
 
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
         self.api_key = os.getenv("GEMINI_API_KEY") if api_key is None else api_key
-        self.model = model or os.getenv("AGENTFLOW_GEMINI_MODEL", "gemini-2.5-flash")
+        self.model = model or os.getenv("AGENTFLOW_GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     def available_models(self) -> list[str]:
         request = Request("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", headers={"x-goog-api-key": self.api_key or ""})
@@ -41,16 +41,26 @@ class GeminiProvider:
             with urlopen(request, timeout=60) as response:
                 result = json.load(response)
         except HTTPError as exc:
-            if exc.code == 404 and _retry:
-                models = self.available_models()
-                choices = sorted((m for m in models if m != self.model), reverse=True)
-                if choices:
-                    self.model = choices[0]
-                    return self.generate(prompt, _retry=False)
+            # Do not silently switch to an arbitrary preview model: its free
+            # quota may be zero even when another listed model works.
             try:
-                detail = json.loads(exc.read().decode()).get("error", {}).get("message", "provider rejected the request")
+                error = json.loads(exc.read().decode()).get("error", {})
             except Exception:
-                detail = "provider rejected the request"
+                error = {}
+            detail = str(error.get("message", "provider rejected the request"))
+            # Google can include project identifiers and other diagnostics. Show only
+            # the quota category and reset hint, never the raw provider response.
+            if exc.code == 429:
+                lower = detail.lower()
+                if "per minute" in lower or "requestsperminute" in lower or "inputtokensperminute" in lower:
+                    reason = "per-minute rate limit reached; wait and retry"
+                elif "per day" in lower or "requestsperday" in lower or "daily" in lower:
+                    reason = "daily quota reached; wait for the project quota reset"
+                elif "limit: 0" in lower or "limit: 0.0" in lower:
+                    reason = "this project has zero free quota for this model; check its AI Studio limits"
+                else:
+                    reason = "quota or rate limit reached; check this model's limits in AI Studio"
+                raise GeminiError(f"Gemini (429), model {self.model}: {reason}") from None
             reason = {400: "invalid request or API key", 401: "authentication failed", 403: "key or model access denied", 404: "model unavailable", 429: "free quota exhausted; try later"}.get(exc.code, "provider unavailable")
             raise GeminiError(f"Gemini ({exc.code}): {reason}") from None
         except Exception as exc:

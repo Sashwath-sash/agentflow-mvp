@@ -25,7 +25,7 @@ def test_saved_key_survives_environment_reset():
             assert client.get("/settings/gemini").json()["configured"] is True
 
 
-def test_removed_model_discovers_replacement():
+def test_removed_model_does_not_switch_to_preview():
     calls=[]
     def request(req,timeout):
         calls.append(req.full_url)
@@ -37,8 +37,14 @@ def test_removed_model_discovers_replacement():
         return io.BytesIO(b'{"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}')
     with patch("agentflow.gemini_ai.urlopen",side_effect=request):
         provider=GeminiProvider(api_key="test-only-placeholder",model="removed-model")
-        assert provider.generate("ping")=="ok"
-        assert provider.model=="gemini-test-flash"
-        assert len(calls)==3
+        from agentflow.gemini_ai import GeminiError
+        try:
+            provider.generate("ping")
+        except GeminiError as exc:
+            assert "model unavailable" in str(exc)
+        else:
+            raise AssertionError("Unavailable model should not silently switch")
+        assert provider.model=="removed-model"
+        assert len(calls)==1
         assert all("test-only-placeholder" not in url for url in calls)
 

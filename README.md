@@ -19,20 +19,28 @@ Open http://127.0.0.1:8001.
 4. Select Groq AI, local evidence processing, Gemini, or Ollama.
 5. Run and download the report. Failed tasks show the cause. Retry preserves completed evidence.
 
-Groq is the currently tested online AI provider. Save its key once in the page, then use **Test connection**. The key is persisted in the ignored local .env file and loaded after restarts. The explicit primary model is `openai/gpt-oss-20b`; the application does not silently switch models or providers. Free plan rate limits still apply. Gemini is also selectable but its currently configured project returned a zero quota error. Ollama requires an installed runtime/model. No keys belong in Git.
+For a quota-free demo, leave **Reliable offline evidence comparison** selected. With two
+text-based PDFs it produces a page-linked evidence comparison and downloadable report.
+This is deterministic extraction and sentence ranking, not AI interpretation; check
+the cited pages before presenting a conclusion. A saved Groq key is not used unless
+Groq is explicitly selected.
+
+Save an online provider key once in the page, then use **Test connection**. Keys are persisted in the ignored local .env file and loaded after restarts; the application does not silently switch models or providers. Free-plan rate limits still apply. Gemini and Groq have both completed local research runs, but a successful connection test does not guarantee enough quota for a full run. Ollama requires an installed runtime/model. No keys belong in Git.
+
+For the review demo, attach two text-selectable papers and an optional small CSV. The file picker retains files added in separate selections. If the objective asks for Crossref results, tick **Search Crossref**. Start a new run after changing files or search; retry uses the previous run's fixed inputs. Show the agent roster, dependency graph, evidence panels, and downloadable report. A CSV with zero missing values now produces an explicit no-missing-values graphic rather than an empty axis.
 
 ## Implemented and tested
 
 - PDF extraction with page references, UTF-8 document reading.
 - Persistent uploads connected to actual execution.
 - CSV/XLSX/XLS inspection, missing values, numeric statistics and JSON-safe nulls.
-- Crossref scholarly metadata retrieval (not general web search or full-text access).
+- Crossref scholarly metadata retrieval using uploaded PDF title hints when available; exact-paper metadata is labelled separately from unreviewed candidate records. This is not general web search or full-text access.
 - Lexical document comparison in local mode; Groq can compare documents semantically, synthesize findings and review the report.
 - Data-quality PNG charts, Markdown evidence reports and downloads.
 - LangGraph controller with runtime agent configurations and dependency scheduling.
 - AI-generated task graphs validated by Pydantic, file/tool permission checks and cycle detection. No-AI mode uses explicit input-aware rules.
 - Bounded automatic failed-branch retries and model-guided instruction repair; successful task outputs are reused.
-- AI semantic document comparison and structured report review. Failed semantic reviews trigger bounded revision, not false success.
+- AI semantic document comparison and structured report review. Failed semantic reviews trigger bounded revision, not false success. Generated DOIs must occur in the uploaded documents or retrieved metadata.
 - Execution metrics, model-call counts, provider-reported tokens when available, reviewer-estimated coverage, and recent-run history.
 - SQLite task checkpoints and stored outputs; successful tasks are reused on retry.
 - Background execution with UI polling, visible tool results, safe text rendering.
@@ -43,9 +51,9 @@ The active application uses agentflow/workflow.py. Earlier planner/runtime proto
 ## Remaining scope
 
 Live Groq operation was verified with two synthetic PDFs, a generated task graph, semantic comparison, review, and a downloadable report. Rate limits and external availability remain outside the application.
-Semantic review requires an available language model; it is not a factual guarantee.
+Semantic review requires an available language model; it is not a factual guarantee. Its coverage percentage is a model estimate, not an externally verified accuracy score. Inception-style benchmarks can differ by split, crop count and ensemble configuration; compare them with those qualifiers.
 Docker and arbitrary generated-code execution are intentionally excluded at the user's request. Data tools use fixed approved Pandas/Matplotlib functions.
-PDF OCR, production authentication/deployment, and an empirical single-agent baseline evaluation are not implemented.
+PDF OCR and production authentication/deployment are not implemented. A one-call synthesis baseline utility exists (`python -m agentflow.evaluate RUN_ID`), but a statistically powered multi-case comparison, including baseline tool selection, is not implemented. The utility uses one provider call and may be subject to quota.
 Branch recovery revises failed-task instructions, not graph topology or permissions. Crossref retrieves scholarly metadata, not full-text web research.
 Document report excerpts cover the first three pages (1800 characters each). AI context distributes a bounded budget across all pages/documents,
 marks truncation, and is capped at 24000 characters. It is not exhaustive full-document analysis. Review original papers before academic use.
