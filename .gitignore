@@ -1,5 +1,6 @@
 __pycache__/
 .pytest_cache/
+tests/.pytest-chart-temp/
 .venv/
 *.py[cod]
 .env

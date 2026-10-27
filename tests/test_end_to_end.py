@@ -56,10 +56,25 @@ def test_zero_missing_values_chart_is_explicit_not_blank():
     with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
         with patch.object(wf, "ROOT", Path(directory)), patch.object(wf, "DB", Path(directory) / "state.db"):
             file = wf.add_file("complete.csv", b"model,score\na,80\nb,90\n")
-            state = wf.run_workflow("Inspect the data and make a chart", [file["id"]])
+            state = wf.run_workflow("Chart missing values in the data", [file["id"]])
             chart = next(task["output"] for task in state["tasks"] if task["tool"] == "chart")
             assert chart["messages"] == ["No missing values in 2 rows and 2 columns."]
             assert (Path(directory) / chart["charts"][0].rsplit("/", 1)[-1]).is_file()
+
+
+def test_csv_metric_values_are_plotted_and_included_in_report():
+    with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+        with patch.object(wf, "ROOT", Path(directory)), patch.object(wf, "DB", Path(directory) / "state.db"):
+            file = wf.add_file("models.csv", b"model,top1,top5\nAlpha,71.4,90.2\nBeta,76.1,92.5\n")
+            state = wf.run_workflow("Plot top1 by model and summarize the results", [file["id"]])
+            assert state["status"] == "completed"
+            chart = next(task["output"] for task in state["tasks"] if task["tool"] == "chart")
+            assert "top1 by model" in chart["messages"][0]
+            assert "models.csv" in chart["messages"][0]
+            assert "missing values" not in chart["messages"][0].lower()
+            report = next(task["output"]["markdown"] for task in state["tasks"] if task["tool"] == "report")
+            assert "71.4" in report and "76.1" in report
+            assert "![Data chart]" in report
 
 
 def test_crossref_uses_uploaded_paper_titles_and_labels_matches():

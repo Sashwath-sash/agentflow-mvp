@@ -1,14 +1,14 @@
 """Live browser and HTTP smoke checks; creates sample inputs only in ignored storage."""
 import io
 import time
+import tempfile
 from pathlib import Path
 import requests
 import pymupdf
 import pandas as pd
 
 BASE="http://127.0.0.1:8001"
-root=Path(__file__).resolve().parents[1]/".agentflow"
-root.mkdir(exist_ok=True)
+root=Path(tempfile.mkdtemp(prefix="agentflow-live-smoke-"))
 pdf=pymupdf.open()
 page=pdf.new_page()
 page.insert_text((72,72),"Research sample: agents coordinate tools. Accuracy was 80 percent.")

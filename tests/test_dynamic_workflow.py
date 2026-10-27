@@ -179,6 +179,23 @@ def test_requested_comparison_and_chart_cannot_be_omitted():
         validate_plan(raw, ["a", "b", "data"], files=files, objective="Compare the two papers and make a chart")
 
 
+def test_data_discovery_chart_is_required_for_every_uploaded_table():
+    files = [{"id": "first", "suffix": ".csv"}, {"id": "second", "suffix": ".xlsx"}]
+    raw = {"tasks": [
+        {"id": fid, "tool": "read", "role": "Reader", "instruction": "Read data",
+         "dependencies": [], "args": {"file_id": fid}}
+        for fid in ("first", "second")
+    ] + [{"id": "report", "tool": "report", "role": "Writer", "instruction": "Report",
+          "dependencies": ["first", "second"], "args": {}}]}
+    with pytest.raises(ValueError, match="requested data chart"):
+        validate_plan(raw, ["first", "second"], files=files, objective="Analyze these datasets")
+    raw["tasks"].insert(-1, {"id": "charts", "tool": "chart", "role": "Visualization",
+                             "instruction": "Discover charts", "dependencies": ["first"], "args": {}})
+    raw["tasks"][-1]["dependencies"].append("charts")
+    with pytest.raises(ValueError, match="every uploaded data file"):
+        validate_plan(raw, ["first", "second"], files=files, objective="Analyze these datasets")
+
+
 def test_generated_python_is_not_an_available_tool():
     raw = graph("allowed")
     raw["tasks"][0]["tool"] = "python"

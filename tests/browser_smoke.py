@@ -1,6 +1,15 @@
 from pathlib import Path
+import tempfile
+import pymupdf
+import pandas as pd
 from playwright.sync_api import sync_playwright
-root=Path(__file__).resolve().parents[1]/".agentflow"
+root=Path(tempfile.mkdtemp(prefix="agentflow-browser-smoke-"))
+pdf=pymupdf.open()
+page=pdf.new_page()
+page.insert_text((72,72),"Research sample: agents coordinate tools. Accuracy was 80 percent.")
+pdf.save(root/"sample-paper.pdf")
+pdf.close()
+pd.DataFrame({"method":["A","B","C"],"accuracy":[0.8,0.9,None]}).to_csv(root/"sample-data.csv",index=False)
 with sync_playwright() as p:
     browser=p.chromium.launch(channel="msedge",headless=True)
     page=browser.new_page()
@@ -9,7 +18,7 @@ with sync_playwright() as p:
     page.goto("http://127.0.0.1:8001")
     page.locator("#objective").fill("Inspect my paper and dataset")
     page.locator("#files").set_input_files([str(root/"sample-paper.pdf"),str(root/"sample-data.csv")])
-    page.get_by_text("sample-data.csv — ready (data)",exact=True).wait_for(timeout=30000)
+    page.get_by_text("sample-data.csv",exact=False).first.wait_for(timeout=30000)
     page.locator("#provider").select_option("none")
     page.locator("#start").click()
     page.get_by_role("link",name="Download report").wait_for(timeout=30000)

@@ -6,8 +6,8 @@
 .upload-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #e6ebf3}.upload-row button{background:#edf2fa;color:#23466e;padding:4px 10px;margin:0;font-size:13px;flex:none}
 *{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:#16233c;font:16px/1.6 system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:40px 24px}header{border-bottom:1px solid #d7dfeb;padding-bottom:24px;margin-bottom:24px}h1{margin:0;font-size:36px}h2{font-size:21px}p{margin:8px 0}.sub{color:#5c6d84}.panel,.task{background:white;border:1px solid #d7dfeb;border-radius:12px;padding:22px;margin:16px 0}textarea,select{width:100%;font:inherit;border:1px solid #aab9cc;border-radius:8px;padding:12px}textarea{height:110px}button,.download{background:#205cdb;color:white;border:0;border-radius:7px;padding:11px 18px;font:inherit;cursor:pointer;display:inline-block;margin:8px 8px 0 0}button:disabled{opacity:.5}label{display:block;margin:12px 0 6px;font-weight:600}label.inline{font-weight:400}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f8fc;padding:14px;max-height:650px;overflow:auto;font:14px/1.6 ui-monospace,monospace}.failed,.blocked{border-left:5px solid #c33434}.completed{border-left:5px solid #24815d}.running{border-left:5px solid #205cdb}.muted{font-size:14px;color:#5c6d84}img{max-width:100%}#error{color:#ad2020}a{color:#205cdb}
 </style></head><body><main><header><h1>AgentFlow</h1><p>Academic research & document analysis</p><p class="sub">Upload evidence, inspect data, retrieve scholarly sources and export your findings.</p></header>
-<section class="panel"><label for="objective">Research objective</label><textarea id="objective" placeholder="Compare the uploaded papers, or analyze missing values and statistics in my dataset."></textarea>
-<label for="files">Papers and datasets</label><input id="files" type="file" multiple accept=".pdf,.txt,.md,.csv,.xlsx,.xls"><p class="muted">Up to 10 files, 10 MB each. PDFs must contain selectable text. Uploads remain on this computer.</p><div id="uploads"></div>
+<section class="panel"><label for="objective">Research objective</label><textarea id="objective" placeholder="Compare uploaded papers, or discover trends and relationships in my dataset. Name a column to prioritize it."></textarea>
+<label for="files">Papers and datasets</label><input id="files" type="file" multiple accept=".pdf,.txt,.md,.csv,.xlsx,.xls"><p class="muted">Up to 10 files, 10 MB each. Scanned PDF pages use local OCR; substantial paper figures are inspected for captions, labels, and layout. Uploads remain on this computer.</p><div id="uploads"></div>
 <label class="inline"><input id="search" type="checkbox"> Search Crossref for scholarly source metadata</label>
 <label for="provider">Analysis mode</label><select id="provider"><option value="none">Reliable offline evidence comparison (no AI or API quota)</option><option value="gemini">Gemini planning, analysis and semantic review</option><option value="ollama">Ollama local AI planning, analysis and semantic review</option></select><p class="muted">Offline mode extracts papers and selects page-linked evidence using deterministic rules; it does not make semantic judgments. Gemini sends bounded evidence to Google. Ollama keeps AI processing local.</p>
 <p id="capabilities" class="muted">Checking runtime capabilities…</p>
@@ -85,7 +85,43 @@ function render(s){
  const waiting=s.tasks.find(t=>t.rate_limit_wait_seconds);
  el('status').textContent='Run '+s.id.slice(0,8)+' · '+(waiting?'Groq rate limit: automatically retrying after '+waiting.rate_limit_wait_seconds+' seconds':s.status)+' · '+(s.planning_mode||'input-aware rules');
  el('error').textContent=s.error||'';el('metrics').textContent=s.metrics?JSON.stringify(s.metrics):'';el('results').replaceChildren();
- for(const t of s.tasks){const card=node('article','',el('results'));card.className='task '+t.status;node('h2',t.role+' · '+t.status,card);node('p','Attempts: '+t.attempts+' · Tool: '+t.tool+' · Depends on: '+(t.dependencies.join(', ')||'none'),card);if(t.rate_limit_wait_seconds)node('p','Groq is temporarily limiting requests. Automatic retry scheduled in about '+t.rate_limit_wait_seconds+' seconds; keep this page open.',card);if(t.instruction)node('p',t.instruction,card);if(t.error)node('p',t.error,card);if(t.validation)node('p',t.validation,card);const o=t.output;if(!o)continue;if(o.kind==='report'){const a=node('a','Download report',card);a.href=o.download;a.className='download';node('pre',o.markdown,card)}else if(o.kind==='charts'){for(let i=0;i<o.charts.length;i++){if(o.messages&&o.messages[i])node('p',o.messages[i],card);const img=node('img','',card);img.src=o.charts[i];img.alt=o.messages?.[i]||'Missing-value counts by column'}}else{const d=node('details','',card);node('summary','View evidence',d);node('pre',JSON.stringify(o,null,2),d)}}
+ for(const t of s.tasks){
+  const card=node('article','',el('results'));card.className='task '+t.status;
+  node('h2',t.role+' · '+t.status,card);
+  node('p','Attempts: '+t.attempts+' · Tool: '+t.tool+' · Depends on: '+(t.dependencies.join(', ')||'none'),card);
+  if(t.rate_limit_wait_seconds)node('p','Groq is temporarily limiting requests. Automatic retry scheduled in about '+t.rate_limit_wait_seconds+' seconds; keep this page open.',card);
+  if(t.instruction)node('p',t.instruction,card);
+  if(t.error)node('p',t.error,card);
+  if(t.validation)node('p',t.validation,card);
+  const o=t.output;if(!o)continue;
+  if(o.kind==='report'){
+   const a=node('a','Download report',card);a.href=o.download;a.className='download';node('pre',o.markdown,card);
+  }else if(o.kind==='charts'){
+   for(const profile of o.profiles||[]){
+    node('p',profile.file+': '+profile.rows+' rows, '+profile.columns+' columns; '+profile.chart_count+' selected charts (limit '+profile.limit+').',card);
+    node('p','Columns plotted as values: '+(profile.plotted_columns.join(', ')||'none'),card);
+    if(profile.omitted_columns?.length){
+     const d=node('details','',card);node('summary','Why other columns were not plotted',d);
+     node('p',profile.omitted_columns.map(item=>item.column+': '+item.reason).join(' · '),d);
+     if(profile.additional_omitted_count)node('p',profile.additional_omitted_count+' more columns omitted.',d);
+    }
+   }
+   for(let i=0;i<o.charts.length;i++){
+    if(o.messages&&o.messages[i])node('p',o.messages[i],card);
+    const img=node('img','',card);img.src=o.charts[i];img.alt=o.messages?.[i]||'Data chart';
+   }
+  }else if(o.kind==='figures'){
+   node('p',o.limitation,card);
+   for(const f of o.figures){
+    node('h3',f.file+' · PDF page '+f.page,card);node('p',f.caption,card);
+    const img=node('img','',card);img.src=f.image;img.alt='Extracted paper figure from '+f.file+' page '+f.page;
+    node('p','OCR labels: '+f.labels.map(x=>x.text).join(' · '),card);
+    node('p','Visual placement: '+f.layout.map(x=>x.region+': '+x.labels_top_to_bottom.join(', ')).join(' | '),card);
+   }
+  }else{
+   const d=node('details','',card);node('summary','View evidence',d);node('pre',JSON.stringify(o,null,2),d);
+  }
+ }
  renderAgents(s);renderGraph(s);renderHandoffs(s);el('retry').hidden=s.status!=='incomplete';el('retryhint').hidden=s.status!=='incomplete';
 }
 async function poll(){for(;;){const r=await fetch('/runs/'+runId);if(!r.ok)throw Error('Could not load run');const s=await r.json();render(s);if(!['queued','running'].includes(s.status))return;await new Promise(r=>setTimeout(r,1000))}}

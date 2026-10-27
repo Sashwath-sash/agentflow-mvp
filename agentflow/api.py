@@ -174,7 +174,7 @@ def retry(run_id: str, background: BackgroundTasks):
 
 @app.get("/artifacts/{name}")
 def artifact(name: str):
-    if not re.fullmatch(r"[a-f0-9]{32}(?:-\d+)?\.(?:md|png)", name):
+    if not re.fullmatch(r"[a-f0-9]{32}(?:-\d+(?:-\d+)?|-figure-\d+-\d+)?\.(?:md|png)", name):
         raise HTTPException(404)
     path = wf.ROOT / name
     if not path.is_file():
@@ -199,7 +199,7 @@ def generate(request: AIRequest):
 def capabilities():
     return {"gemini_configured": bool(os.getenv("GEMINI_API_KEY")), "execution": "Fixed approved Python functions; no generated-code execution",
             "runtime": "LangGraph", "persistence": "SQLite task checkpoints",
-            "tools": ["read", "search", "compare", "chart", "report"],
+            "tools": ["read", "search", "compare", "visual", "chart", "report"],
             "limits": {"files": 10, "file_mb": 10, "pdf_pages": 200, "task_attempts": 3, "model_calls": 30}}
 
 
